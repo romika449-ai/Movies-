@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>GHAZI OTT — Watch Movies & Series</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Bebas+Neue&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg: #0b0b0f;
+            --bg-2: #101015;
+            --bg-card: #16161c;
+            --bg-elevated: #23232c;
+            --red: #E50914;
+            --red-dark: #B20710;
+            --red-glow: rgba(229,9,20,0.45);
+            --gold: #f5c518;
+            --text: #ffffff;
+            --text-muted: #b3b3b3;
+            --text-dim: #7c7c85;
+            --green: #46d369;
+            /* Poster wall tuning */
+            --pad: clamp(12px, 3.2vw, 46px);
+            --gap: 8px;
+            --poster-min: clamp(104px, 14vw, 172px);
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        html { scroll-behavior:smooth; -webkit-tap-highlight-color:transparent; }
+        body {
+            background:
+                radial-gradient(1200px 600px at 80% -10%, rgba(229,9,20,0.10), transparent 60%),
+                radial-gradient(900px 500px at 0% 10%, rgba(80,0,120,0.10), transparent 55%),
+                var(--bg);
+            color: var(--text);
+            font-family: 'Inter', system-ui, sans-serif;
+            overflow-x: hidden;
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+            position: relative;
+        }
+
+        #starCanvas { position: fixed; inset:0; z-index:-2; pointer-events:none; opacity:0.28; }
+        #cursorGlow {
+            position: fixed; width: 460px; height: 460px;
+            background: radial-gradient(circle, rgba(229,9,20,0.16) 0%, transparent 70%);
+            border-radius: 50%; pointer-events: none; z-index: 9998;
+            transform: translate(-50%,-50%); filter: blur(48px);
+            will-change: transform; transition: transform 0.05s linear;
+        }
+
+        /* ── Loading Screen ── */
+        .loading-screen {
+            position: fixed; inset:0; background: var(--bg); z-index: 10000;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            transition: opacity 0.6s, visibility 0.6s;
+        }
+        .loading-screen.hidden { opacity:0; visibility:hidden; pointer-events:none; }
+        .loading-logo {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: clamp(3rem, 13vw, 9rem);
+            font-weight: 900; color: var(--red); letter-spacing: 4px;
+            opacity: 0; white-space: nowrap;
+            animation: netflixIntro 2.5s cubic-bezier(0.165, 0.84, 0.44, 1) forwards;
+            text-shadow: 0 0 50px var(--red-glow);
+        }
+        @keyframes netflixIntro {
+            0% { transform: scale(1.5); opacity: 0; filter: blur(15px); letter-spacing: 16px; }
+            40% { opacity: 1; filter: blur(2px); letter-spacing: 8px; }
+            70% { transform: scale(1); opacity: 1; filter: blur(0); letter-spacing: 4px; }
+            100% { opacity: 1; }
+        }
+        .loading-bar-container {
+            width: 300px; height: 4px; background: rgba(255,255,255,0.1);
+            margin-top: 42px; border-radius: 2px; overflow: hidden; opacity: 0;
+            animation: fadeBarIn 0.5s ease 1s forwards;
+        }
+        @keyframes fadeBarIn { to { opacity: 1; } }
+        .loading-bar-fill {
+            width: 0%; height: 100%;
+            background: linear-gradient(90deg, var(--red-dark), var(--red));
+            animation: loadFill 1.5s ease-in-out 1s forwards;
+        }
+        @keyframes loadFill { 0% {width:0%;} 100% {width:100%;} }
+
+        /* ── Navbar ── */
+        .nav {
+            position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+            padding: 20px var(--pad);
+            display: flex; align-items: center; gap: 28px;
+            background: linear-gradient(180deg, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.45) 60%, rgba(0,0,0,0) 100%);
+            transition: background 0.3s ease, padding 0.3s ease;
+        }
+        .nav.scrolled {
+            background: rgba(11,11,15,0.9);
+            padding: 12px var(--pad);
+            backdrop-filter: blur(14px);
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .nav-logo {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 2rem; font-weight: 900;
+            color: var(--red); letter-spacing: 1px;
+            text-transform: uppercase; cursor: pointer;
+            text-shadow: 0 0 20px var(--red-glow); user-select: none;
+            white-space: nowrap;
+        }
+        .nav-links { display: flex; gap: 22px; font-size: 14px; font-weight: 500; }
+        .nav-links a { color: var(--text-muted); text-decoration: none; transition: color 0.2s; cursor: pointer; }
+        .nav-links a:hover, .nav-links a.active { color: var(--text); font-weight: 700; }
+
+        .nav-right { margin-left: auto; display: flex; align-items: center; gap: 18px; }
+        .nav-credits {
+            display: flex; flex-direction: column; align-items: flex-end;
+            font-size: 0.7rem; line-height: 1.2; color: var(--text-muted);
+            border-right: 1px solid rgba(255,255,255,0.1); padding-right: 18px;
+        }
+        .nav-credits .dev { color: #fff; font-weight: 600; }
+        .nav-credits .teach { color: var(--red); font-weight: 600; }
+
+        .search-container { position: relative; display: flex; align-items: center; }
+        .search-input {
+            width: 0; padding: 9px 0;
+            background: rgba(0,0,0,0.6);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 6px; color: #fff; font-size: 14px;
+            outline: none; transition: all 0.35s ease; font-family: 'Inter', sans-serif;
+        }
+        .search-input.active { width: 230px; padding: 9px 14px; border-color: rgba(255,255,255,0.7); }
+        .search-icon-btn {
+            background: transparent; border: none; color: #fff;
+            font-size: 1.2rem; cursor: pointer; padding: 6px; display: flex; align-items: center;
+        }
+        .search-clear {
+            position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+            background: none; border: none; color: #aaa; cursor: pointer; display: none; font-size: 1rem;
+        }
+        .search-input.active:not(:placeholder-shown) ~ .search-clear { display: block; }
+        .search-dropdown {
+            position: absolute; top: 120%; left: 0; width: 100%; min-width: 340px;
+            background: rgba(12,12,16,0.98); backdrop-filter: blur(20px);
+            border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);
+            max-height: 440px; overflow-y: auto; display: none; z-index: 200;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.85);
+        }
+        .search-dropdown.active { display: block; }
+        .search-item {
+            display: flex; gap: 14px; padding: 10px 14px; cursor: pointer; align-items: center;
+            border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.2s;
+        }
+        .search-item:hover { background: rgba(229,9,20,0.2); }
+        .search-item img { width: 40px; height: 60px; border-radius: 3px; object-fit:cover; background:#222; }
+        .search-item-info b { display:block; font-size:0.9rem; color:#fff; }
+        .search-item-info span { font-size:0.75rem; color:var(--text-muted); }
+        .search-no-results { text-align:center; padding:20px; color:var(--text-muted); }
+
+        .watchlist-btn-nav {
+            background: none; border: none; font-size: 1.3rem; color: #fff;
+            cursor: pointer; display: flex; align-items: center; gap: 6px; transition: color 0.2s;
+        }
+        .watchlist-btn-nav:hover { color: var(--red); }
+        .profile-avatar {
+            width: 34px; height: 34px; border-radius: 8px;
+            background: linear-gradient(135deg, var(--red), #4a0408);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 800; font-size: 14px; cursor: pointer;
+            box-shadow: 0 4px 14px var(--red-glow);
+        }
+
+        /* ── Hero ── */
+        .hero { height: 88vh; min-height: 560px; position: relative; overflow: hidden; }
+        .hero-slide {
+            position: absolute; inset:0; background-size: cover; background-position: center 20%;
+            opacity: 0; transition: opacity 1.2s ease; will-change: opacity;
+        }
+        .hero-slide.active { opacity:1; z-index:2; animation: kenBurns 24s ease-in-out infinite alternate; }
+        @keyframes kenBurns { from { transform: scale(1.0); } to { transform: scale(1.12); } }
+        .hero-overlay {
+            position: absolute; inset:0; z-index: 3;
+            background:
+                linear-gradient(180deg, rgba(11,11,15,0) 30%, rgba(11,11,15,0.45) 62%, rgba(11,11,15,1) 100%),
+                linear-gradient(90deg, rgba(11,11,15,0.92) 0%, rgba(11,11,15,0.35) 52%, rgba(11,11,15,0) 100%);
+        }
+        .hero-content { position: absolute; bottom: 26%; left: var(--pad); z-index: 4; max-width: 620px; }
+        .hero-label {
+            font-size: 12px; letter-spacing: 4px; font-weight: 700;
+            color: var(--text-muted); margin-bottom: 14px; display: flex; align-items: center; gap: 12px;
+        }
+        .hero-label::before { content: ''; width: 34px; height: 3px; background: var(--red); }
+        .hero-title {
+            font-family: 'Inter', sans-serif; font-size: clamp(2.4rem, 6vw, 5.2rem);
+            font-weight: 900; line-height: 0.95; margin-bottom: 16px;
+            text-shadow: 2px 4px 26px rgba(0,0,0,0.9); letter-spacing: -2px;
+        }
+        .hero-meta { display: flex; gap: 14px; align-items: center; margin: 0 0 18px; font-size: 14px; flex-wrap: wrap; }
+        .hero-meta .match { color: var(--green); font-weight: 700; }
+        .maturity-badge { border: 1px solid rgba(255,255,255,0.5); padding: 2px 8px; border-radius: 3px; font-size: 12px; font-weight: 600; }
+        .hero-buttons { display: flex; gap: 12px; flex-wrap: wrap; }
+        .hero-watch, .hero-info {
+            display: flex; align-items: center; gap: 10px; padding: 13px 30px;
+            border: none; border-radius: 6px; font-size: 17px; font-weight: 700;
+            cursor: pointer; transition: all 0.2s ease; font-family: inherit;
+        }
+        .hero-watch { background: white; color: black; }
+        .hero-watch:hover { background: rgba(255,255,255,0.78); transform: translateY(-1px); }
+        .hero-info { background: rgba(60,60,68,0.7); color: white; backdrop-filter: blur(4px); }
+        .hero-info:hover { background: rgba(60,60,68,0.5); }
+        .hero-dots { position: absolute; bottom: 26%; right: var(--pad); z-index: 4; display: flex; gap: 6px; }
+        .hero-dot { width: 30px; height: 3px; background: rgba(255,255,255,0.3); cursor: pointer; transition: background 0.3s; border-radius: 2px; }
+        .hero-dot.active { background: var(--red); }
+
+        /* ── Rows wrapper ── */
+        .rows-wrapper { position: relative; z-index: 5; margin-top: -70px; padding-bottom: 30px; }
+        .section { margin: 0 0 26px; position: relative; }
+        .section-title {
+            font-size: 1.3rem; font-weight: 800; margin-bottom: 12px; padding: 0 var(--pad);
+            color: var(--text); display: flex; align-items: center; gap: 12px; letter-spacing: -0.3px;
+        }
+        .section-title::before { content:''; width:4px; height:22px; border-radius:2px; background: var(--red); box-shadow: 0 0 12px var(--red-glow); }
+
+        /* ── Horizontal poster row (home) ── */
+        .row-scroll-area { position: relative; }
+        .row-track {
+            display: flex; gap: var(--gap); padding: 8px var(--pad) 14px;
+            overflow-x: auto; overflow-y: hidden; scroll-behavior: smooth;
+            scrollbar-width: none; -ms-overflow-style: none;
+        }
+        .row-track::-webkit-scrollbar { display: none; }
+        .scroll-btn {
+            position: absolute; top: 0; bottom: 0; width: 56px;
+            background: linear-gradient(90deg, rgba(11,11,15,0.95), transparent);
+            border: none; color: white; font-size: 2.4rem; cursor: pointer; z-index: 30;
+            opacity: 0; transition: opacity 0.3s, color 0.2s; display: flex; align-items: center; justify-content: center;
+        }
+        .scroll-btn.right { right: 0; background: linear-gradient(-90deg, rgba(11,11,15,0.95), transparent); }
+        .scroll-btn.left { left: 0; }
+        .section:hover .scroll-btn { opacity: 1; }
+        .scroll-btn:hover { color: var(--red); }
+
+        /* ── Dense poster WALL (movies / tv / new / my list) ── */
+        .grid-wall {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(var(--poster-min), 1fr));
+            gap: var(--gap);
+            padding: 8px var(--pad) 20px;
+        }
+
+        /* ── Poster card (portrait, edge-to-edge, no permanent gaps) ── */
+        .card {
+            flex: 0 0 auto; width: var(--poster-min);
+            position: relative; cursor: pointer; border-radius: 8px; overflow: hidden;
+            background: var(--bg-card);
+            transition: transform 0.35s cubic-bezier(0.5,0,0.1,1), box-shadow 0.35s;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.5);
+        }
+        .grid-wall .card { width: 100%; }
+        .card-thumb { position: relative; width: 100%; aspect-ratio: 2/3; background: #14141a; overflow: hidden; }
+        .card-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.5s ease; }
+        .card:hover {
+            transform: scale(1.07) translateY(-4px); z-index: 60;
+            box-shadow: 0 24px 50px rgba(0,0,0,0.85), 0 0 0 2px rgba(229,9,20,0.55);
+        }
+        .card:hover .card-thumb img { transform: scale(1.06); }
+
+        .card-rating {
+            position: absolute; top: 8px; left: 8px; z-index: 4;
+            display: flex; align-items: center; gap: 4px;
+            background: rgba(0,0,0,0.72); backdrop-filter: blur(4px);
+            padding: 3px 7px; border-radius: 5px; font-size: 0.72rem; font-weight: 700;
+        }
+        .card-rating i { color: var(--gold); font-size: 0.7rem; }
+        .card-toplist {
+            position: absolute; top: 8px; right: 8px; z-index: 4;
+            background: var(--red); color: #fff; font-size: 0.62rem; font-weight: 800;
+            letter-spacing: 0.5px; padding: 3px 6px; border-radius: 5px; text-transform: uppercase;
+        }
+
+        .card-overlay {
+            position: absolute; inset: 0; z-index: 3;
+            background: linear-gradient(180deg, transparent 35%, rgba(0,0,0,0.55) 65%, rgba(0,0,0,0.96) 100%);
+            opacity: 0; display: flex; flex-direction: column; justify-content: flex-end;
+            padding: 12px 12px 14px; transition: opacity 0.28s ease;
+        }
+        .card:hover .card-overlay { opacity: 1; }
+        .card-name { font-weight: 700; font-size: 0.86rem; line-height: 1.2; margin-bottom: 3px;
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .card-sub { font-size: 0.72rem; color: var(--text-muted); margin-bottom: 10px; display: flex; gap: 8px; align-items:center; }
+        .card-sub .match { color: var(--green); font-weight: 700; }
+        .card-buttons { display: flex; gap: 6px; }
+        .circle-btn {
+            width: 30px; height: 30px; border-radius: 50%;
+            border: 1.5px solid rgba(255,255,255,0.55); background: rgba(30,30,36,0.7); color: white;
+            display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 12px; transition: all 0.2s;
+        }
+        .circle-btn:hover { border-color: white; background: rgba(80,80,90,0.9); transform: scale(1.08); }
+        .circle-btn.play-btn { background: white; color: black; border-color: white; }
+        .circle-btn.play-btn:hover { background: rgba(255,255,255,0.82); }
+        .card-heart.fas { color: var(--red); animation: heartPop 0.35s ease; }
+        @keyframes heartPop { 0%{transform:scale(1);} 50%{transform:scale(1.4);} 100%{transform:scale(1);} }
+
+        .grid-sentinel { height: 1px; width: 100%; }
+        .grid-loader { text-align:center; padding: 24px; color: var(--text-dim); font-size: 0.9rem; }
+        .grid-loader i { color: var(--red); }
+
+        /* ── Recently Watched ── */
+        .recent-wrap { margin: 0 0 26px; display:none; position: relative; }
+
+        /* ── Back to top ── */
+        .back-to-top {
+            position: fixed; bottom: 30px; right: 30px; width: 50px; height: 50px; border-radius: 50%;
+            background: var(--red); display: none; align-items: center; justify-content: center;
+            color: #fff; font-size: 1.2rem; cursor: pointer; z-index: 90;
+            box-shadow: 0 4px 25px var(--red-glow); transition: all 0.3s; border: none;
+        }
+        .back-to-top.visible { display:flex; }
+        .back-to-top:hover { transform: translateY(-4px); background: var(--red-dark); }
+
+        /* ── Movie Modal ── */
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); z-index: 1000;
+            display: flex; align-items: flex-start; justify-content: center; padding: 5vh 20px; overflow-y: auto;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
+        }
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+        .modal-content {
+            background: var(--bg-2); border-radius: 12px; max-width: 900px; width: 100%; position: relative;
+            box-shadow: 0 30px 80px rgba(0,0,0,0.9); transform: scale(0.92) translateY(20px);
+            transition: transform 0.4s cubic-bezier(0.5,0,0.1,1); overflow: hidden;
+        }
+        .modal-overlay.active .modal-content { transform: scale(1) translateY(0); }
+        .modal-close {
+            position: absolute; top: 18px; right: 18px; width: 40px; height: 40px; border-radius: 50%;
+            background: rgba(20,20,24,0.85); border: none; color: white; font-size: 1.2rem; cursor: pointer; z-index: 10;
+            display: flex; align-items: center; justify-content: center; transition: background 0.2s, transform 0.2s;
+        }
+        .modal-close:hover { background: rgba(60,60,60,0.95); transform: rotate(90deg); }
+        .modal-hero { position: relative; height: 50vh; min-height: 340px; }
+        .modal-hero img { width: 100%; height: 100%; object-fit: cover; }
+        .modal-hero::after {
+            content: ''; position: absolute; inset: 0;
+            background: linear-gradient(180deg, transparent 30%, var(--bg-2) 100%),
+                        linear-gradient(90deg, rgba(16,16,21,0.85) 0%, transparent 60%);
+        }
+        .modal-hero-content { position: absolute; bottom: 28px; left: var(--pad); right: var(--pad); z-index: 5; }
+        .modal-title { font-size: 2.4rem; font-weight: 900; margin: 0 0 16px; text-shadow: 2px 2px 12px rgba(0,0,0,0.9); letter-spacing: -1px; }
+        .modal-play-btn {
+            display: inline-flex; align-items: center; gap: 10px; padding: 12px 28px; background: white; color: black;
+            border: none; border-radius: 6px; font-size: 1.1rem; font-weight: 800; cursor: pointer; transition: background 0.2s;
+        }
+        .modal-play-btn:hover { background: rgba(255,255,255,0.78); }
+        .modal-body { padding: 22px var(--pad) 40px; display: grid; grid-template-columns: 1.5fr 1fr; gap: 30px; }
+        .modal-body p { font-size: 1rem; line-height: 1.55; color: #fff; margin-bottom: 16px; }
+        .modal-body span.label { color: var(--text-dim); display: block; font-size: 0.85rem; margin-bottom: 4px; }
+        .modal-body span.value { color: #fff; font-size: 0.95rem; }
+        .modal-meta { display: flex; gap: 14px; align-items: center; font-size: 0.9rem; margin-bottom: 16px; flex-wrap: wrap; }
+
+        /* ── Empty state ── */
+        .empty-state { text-align: center; padding: 110px 20px; color: #888; }
+        .empty-state i { font-size: 3rem; margin-bottom: 20px; display: block; color: var(--red); }
+        .empty-state h2 { font-size: 1.5rem; margin-bottom: 10px; color:#fff; }
+
+        /* ── Footer ── */
+        footer { padding: 30px var(--pad); color: var(--text-dim); font-size: 13px; border-top: 1px solid rgba(255,255,255,0.08); margin-top: 20px; position: relative; z-index: 5; text-align: center; }
+        .developer-credits { margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.05); font-family: 'Inter', sans-serif; }
+        .dev-line { font-size: 0.95rem; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; }
+        .dev-line span { color: #fff; font-weight: 700; }
+        .taught-line { font-size: 0.85rem; color: var(--text-dim); font-style: italic; }
+        .taught-line span { color: var(--red); font-weight: 600; }
+
+        /* ── Toast ── */
+        .toast {
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(120px);
+            background: rgba(24,24,28,0.97); color: white; padding: 14px 22px; border-radius: 8px;
+            border-left: 4px solid var(--red); z-index: 9999; font-size: 14px; font-weight: 500;
+            box-shadow: 0 12px 36px rgba(0,0,0,0.7); display: flex; align-items: center; gap: 10px;
+            transition: transform 0.4s cubic-bezier(0.5,0,0.1,1);
+        }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+
+        ::-webkit-scrollbar { width: 10px; height: 10px; }
+        ::-webkit-scrollbar-track { background: #0a0a0a; }
+        ::-webkit-scrollbar-thumb { background: #2a2a30; border-radius: 5px; }
+        ::-webkit-scrollbar-thumb:hover { background: #444; }
+
+        /* ── Responsive ── */
+        @media (max-width: 900px) {
+            .nav-links { display: none; }
+            .nav-credits { display: none; }
+            .hero { height: 78vh; }
+            .hero-content { bottom: 22%; }
+            .hero-title { font-size: 2.4rem; }
+            .hero-watch, .hero-info { padding: 10px 18px; font-size: 14px; }
+            .hero-dots { bottom: 22%; }
+            .section-title { font-size: 1.1rem; }
+            .search-input.active { width: 150px; }
+            .search-dropdown { min-width: 260px; }
+            .modal-body { grid-template-columns: 1fr; padding: 20px; }
+            .modal-title { font-size: 1.7rem; }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="starCanvas"></canvas>
+    <div id="cursorGlow"></div>
+
+    <!-- Loading Screen -->
+    <div class="loading-screen" id="loadingScreen">
+        <div class="loading-logo">GHAZI&nbsp;OTT</div>
+        <div class="loading-bar-container"><div class="loading-bar-fill"></div></div>
+    </div>
+
+    <!-- Nav -->
+    <nav class="nav" id="mainNav">
+        <div class="nav-logo">GHAZI OTT</div>
+        <div class="nav-links">
+            <a class="active" data-cat="home">Home</a>
+            <a data-cat="tv">TV Shows</a>
+            <a data-cat="movies">Movies</a>
+            <a data-cat="new">New &amp; Popular</a>
+            <a data-cat="mylist">My List</a>
+        </div>
+        <div class="nav-right">
+            <div class="search-container">
+                <input type="text" class="search-input" id="searchInput" placeholder="Titles, genres, people..." autocomplete="off">
+                <button class="search-icon-btn" id="searchIconBtn"><i class="fas fa-search"></i></button>
+                <button class="search-clear" id="searchClear">&times;</button>
+                <div class="search-dropdown" id="searchDropdown"></div>
+            </div>
+            <button class="watchlist-btn-nav" id="watchlistBtnNav"><i class="fas fa-bell"></i></button>
+            <div class="profile-avatar">G</div>
+        </div>
+    </nav>
+
+    <!-- Hero -->
+    <div class="hero" id="hero"><div class="hero-dots" id="heroDots"></div></div>
+
+    <!-- Recently Watched -->
+    <div class="recent-wrap" id="recentSection">
+        <h2 class="section-title">Continue Watching</h2>
+        <div class="row-scroll-area"><div class="row-track" id="recentGrid"></div></div>
+    </div>
+
+    <!-- Sections / Grid -->
+    <div class="rows-wrapper" id="sectionsContainer"></div>
+
+    <!-- Movie Modal -->
+    <div class="modal-overlay" id="movieModal">
+        <div class="modal-content">
+            <button class="modal-close" id="modalClose">&times;</button>
+            <div class="modal-hero">
+                <img id="modalBackdrop" src="" alt="">
+                <div class="modal-hero-content">
+                    <h2 class="modal-title" id="modalTitle"></h2>
+                    <button class="modal-play-btn" id="modalPlayBtn"><i class="fas fa-play"></i> Play</button>
+                </div>
+            </div>
+            <div class="modal-body">
+                <div>
+                    <div class="modal-meta" id="modalMeta"></div>
+                    <p id="modalDesc"></p>
+                </div>
+                <div>
+                    <p><span class="label">Cast:</span> <span class="value" id="modalCast"></span></p>
+                    <p><span class="label">Genres:</span> <span class="value" id="modalGenres"></span></p>
+                    <p><span class="label">Type:</span> <span class="value" id="modalType"></span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <button class="back-to-top" id="backToTop"><i class="fas fa-arrow-up"></i></button>
+
+    <footer>
+        <p>© 2026 GHAZI OTT — Watch Movies & Series.</p>
+    </footer>
+
+    <script>
+        (function() {
+            // ═══════ Canvas Starfield ═══════
+            const canvas = document.getElementById('starCanvas');
+            const ctx = canvas.getContext('2d');
+            let stars = [];
+            function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+            function createStars(n) {
+                stars = [];
+                for(let i=0;i<n;i++) stars.push({
+                    x:Math.random()*canvas.width, y:Math.random()*canvas.height,
+                    r:Math.random()*1.5+0.5, a:Math.random(), da:(Math.random()*0.04+0.008), s:Math.random()*0.06+0.02
+                });
+            }
+            createStars(150);
+            function drawStars() {
+                ctx.clearRect(0,0,canvas.width,canvas.height);
+                stars.forEach(s => {
+                    ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+                    ctx.fillStyle = `rgba(255,250,255,${s.a * 0.5})`; ctx.fill();
+                    s.a += s.da; if(s.a<=0.1 || s.a>=0.9) s.da*=-1;
+                    s.y += s.s; if(s.y>canvas.height){ s.y=0; s.x=Math.random()*canvas.width; }
+                });
+                requestAnimationFrame(drawStars);
+            }
+            drawStars();
+
+            // ═══════ Cursor Glow ═══════
+            const cursorGlow = document.getElementById('cursorGlow');
+            let rafId=null, mx=0, my=0;
+            document.addEventListener('mousemove', e => {
+                mx=e.clientX; my=e.clientY;
+                if(!rafId) rafId = requestAnimationFrame(()=>{ cursorGlow.style.transform = `translate(${mx}px, ${my}px)`; rafId=null; });
+            });
+
+            // ═══════ Config ═══════
+            const TMDB_KEY = '6f88c485f6d936e3e93f3ab0758a15f2';
+            const TMDB_BASE = 'https://api.themoviedb.org/3';
+            const TMDB_IMG = 'https://image.tmdb.org/t/p/w500';
+            const TMDB_BACK = 'https://image.tmdb.org/t/p/original';
+
+            // Home = curated rows. movies/tv/new = single dense poster wall (infinite).
+            const HOME_ROWS = [
+                { key:'trending',   title:'Trending Now',         ep:'/trending/movie/week?page=', type:'movie', hero:true },
+                { key:'toprated',   title:'Top Rated',            ep:'/movie/top_rated?page=', type:'movie' },
+                { key:'action',     title:'Action & Adventure',   ep:'/discover/movie?with_genres=28&sort_by=popularity.desc&page=', type:'movie' },
+                { key:'scifi',      title:'Sci-Fi & Fantasy',     ep:'/discover/movie?with_genres=878&sort_by=popularity.desc&page=', type:'movie' },
+                { key:'horror',     title:'Horror & Thrillers',   ep:'/discover/movie?with_genres=27&sort_by=popularity.desc&page=', type:'movie' },
+                { key:'comedy',     title:'Comedy',               ep:'/discover/movie?with_genres=35&sort_by=popularity.desc&page=', type:'movie' },
+                { key:'animation',  title:'Animation',            ep:'/discover/movie?with_genres=16&sort_by=popularity.desc&page=', type:'movie' },
+                { key:'romance',    title:'Romance',              ep:'/discover/movie?with_genres=10749&sort_by=popularity.desc&page=', type:'movie' },
+                { key:'bollywood',  title:'Bollywood',            ep:'/discover/movie?with_original_language=hi&sort_by=popularity.desc&page=', type:'movie' },
+                { key:'documentary',title:'Documentaries',        ep:'/discover/movie?with_genres=99&sort_by=popularity.desc&page=', type:'movie' },
+                { key:'tvshows',    title:'Trending TV Shows',    ep:'/trending/tv/week?page=', type:'tv' },
+            ];
+            // Endpoints backing the dense walls
+            const WALLS = {
+                movies: { title:'Movies',        ep:'/discover/movie?sort_by=popularity.desc&vote_count.gte=50&page=', type:'movie' },
+                tv:     { title:'TV Shows',       ep:'/discover/tv?sort_by=popularity.desc&vote_count.gte=50&page=', type:'tv' },
+                new:    { title:'New & Popular',  ep:'/trending/all/week?page=', type:'mixed' },
+            };
+
+            let watchlist=[], recent=[], heroMovies=[], heroIdx=0, heroTimer;
+            let wallState = null; // { page, ep, type, loading, ended, observer }
+
+            function loadStorage() {
+                try { watchlist=JSON.parse(localStorage.shoeb_wl||'[]'); recent=JSON.parse(localStorage.shoeb_rec||'[]'); }
+                catch(e){ watchlist=[]; recent=[]; }
+            }
+            function saveWl(){ localStorage.shoeb_wl = JSON.stringify(watchlist); }
+            function saveRec(){ localStorage.shoeb_rec = JSON.stringify(recent); }
+
+            async function tmdbFetch(endpoint) {
+                const sep = endpoint.includes('?')?'&':'?';
+                const res = await fetch(TMDB_BASE+endpoint+sep+'api_key='+TMDB_KEY);
+                if(!res.ok) throw new Error('API fail');
+                return res.json();
+            }
+            function esc(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+            function toast(msg){
+                const t=document.createElement('div'); t.className='toast show';
+                t.innerHTML=`<i class="fas fa-check-circle" style="color:#46d369"></i> ${msg}`;
+                document.body.appendChild(t);
+                setTimeout(()=>{ t.classList.remove('show'); setTimeout(()=>t.remove(), 400); },2200);
+            }
+
+            // ═══════ Poster Card (portrait) ═══════
+            function createCard(item, forcedType){
+                const type = forcedType || item.media_type || 'movie';
+                if(type !== 'movie' && type !== 'tv') return null;
+                const posterPath = item.poster_path ? TMDB_IMG + item.poster_path
+                                 : (item.backdrop_path ? TMDB_IMG + item.backdrop_path : '');
+                const title = item.title||item.name||'Untitled';
+                const year = (item.release_date||item.first_air_date||'').substring(0,4);
+                const rating = item.vote_average?Number(item.vote_average).toFixed(1):'?';
+                const match = item.vote_average ? Math.round(item.vote_average * 10) : 0;
+                const id = item.id;
+                const top = item.vote_average >= 8;
+
+                const card = document.createElement('div');
+                card.className='card'; card.dataset.id=id; card.dataset.type=type;
+                card.innerHTML = `
+                    <div class="card-thumb">
+                        <img src="${posterPath}" loading="lazy" alt="${esc(title)}" onerror="this.style.background='#1a1a20';this.style.opacity='0';">
+                        <div class="card-rating"><i class="fas fa-star"></i>${rating}</div>
+                        ${top?'<div class="card-toplist">Top</div>':''}
+                        <div class="card-overlay">
+                            <div class="card-name">${esc(title)}</div>
+                            <div class="card-sub"><span class="match">${match}% Match</span><span>${year||''}</span></div>
+                            <div class="card-buttons">
+                                <button class="circle-btn play-btn" title="Play"><i class="fas fa-play"></i></button>
+                                <button class="circle-btn card-heart" title="My List"><i class="far fa-heart"></i></button>
+                                <button class="circle-btn info-btn" title="More Info"><i class="fas fa-chevron-down"></i></button>
+                            </div>
+                        </div>
+                    </div>`;
+
+                card.addEventListener('click', () => openMovieModal(id, type));
+                card.querySelector('.info-btn').addEventListener('click', e => { e.stopPropagation(); openMovieModal(id, type); });
+                card.querySelector('.card-heart').addEventListener('click', e => {
+                    e.stopPropagation(); toggleWl(id, title, posterPath, year, type); updateHeart(card, id);
+                });
+                card.querySelector('.play-btn').addEventListener('click', e => {
+                    e.stopPropagation(); addRecent(id, title, posterPath, year, type);
+                    window.location.href=`player.html?id=${id}&type=${type}`;
+                });
+                updateHeart(card, id);
+                return card;
+            }
+
+            function updateHeart(card, id){
+                const i = card.querySelector('.card-heart i');
+                if (i) i.className = watchlist.some(w=>w.id==id) ? 'fas fa-heart' : 'far fa-heart';
+            }
+            function refreshHearts(){ document.querySelectorAll('.card').forEach(c=>updateHeart(c,c.dataset.id)); }
+
+            function toggleWl(id,title,poster,year,type){
+                const idx=watchlist.findIndex(w=>w.id==id);
+                if(idx>=0){ watchlist.splice(idx,1); toast('Removed from My List'); }
+                else { watchlist.push({id:id,title,poster,year,type}); toast('Added to My List'); }
+                saveWl();
+                document.getElementById('watchlistBtnNav').querySelector('i').className = watchlist.length > 0 ? 'fas fa-heart' : 'fas fa-bell';
+                refreshHearts();
+                const activeLink = document.querySelector('.nav-links a.active');
+                if (activeLink && activeLink.dataset.cat === 'mylist') renderMyList();
+            }
+
+            function addRecent(id,title,poster,year,type){
+                recent=recent.filter(r=>r.id!=id);
+                recent.unshift({id,title,poster,year,type});
+                if(recent.length>12) recent.pop();
+                saveRec(); renderRecent();
+            }
+
+            function renderRecent(){
+                const wrap=document.getElementById('recentSection');
+                if(recent.length===0){ wrap.style.display='none'; return; }
+                wrap.style.display='block';
+                const grid=document.getElementById('recentGrid'); grid.innerHTML='';
+                recent.forEach(r=>{
+                    const c=createCard({
+                        id:r.id, title:r.title, poster_path:null, backdrop_path:null,
+                        release_date:(r.year||'')+'-01-01', vote_average:0
+                    }, r.type);
+                    if(!c) return;
+                    // Use stored poster directly (may be w500 already)
+                    const img=c.querySelector('img'); if(r.poster) img.src=r.poster;
+                    c.querySelector('.card-rating').innerHTML='<i class="fas fa-clock"></i>';
+                    grid.appendChild(c);
+                });
+            }
+
+            // ═══════ Modal ═══════
+            const modal = document.getElementById('movieModal');
+            const modalClose = document.getElementById('modalClose');
+            const modalPlayBtn = document.getElementById('modalPlayBtn');
+
+            async function openMovieModal(id, type) {
+                modal.classList.add('active');
+                document.body.style.overflow = 'hidden';
+                document.getElementById('modalBackdrop').src = '';
+                document.getElementById('modalTitle').textContent = 'Loading...';
+                document.getElementById('modalDesc').textContent = '';
+                document.getElementById('modalMeta').innerHTML = '';
+                document.getElementById('modalCast').textContent = '-';
+                document.getElementById('modalGenres').textContent = '-';
+                document.getElementById('modalType').textContent = type === 'movie' ? 'Movie' : 'TV Show';
+
+                try {
+                    const endpoint = type === 'movie' ? `/movie/${id}?append_to_response=credits` : `/tv/${id}?append_to_response=credits`;
+                    const data = await tmdbFetch(endpoint);
+                    const title = data.title || data.name || 'Untitled';
+                    const year = (data.release_date || data.first_air_date || '').substring(0,4);
+                    const rating = data.vote_average ? Number(data.vote_average).toFixed(1) : '?';
+                    const match = data.vote_average ? Math.round(data.vote_average * 10) : 0;
+                    const runtime = data.runtime || (data.episode_run_time && data.episode_run_time[0]) || '?';
+                    const backdrop = data.backdrop_path ? TMDB_BACK + data.backdrop_path : (data.poster_path ? TMDB_IMG + data.poster_path : '');
+                    const cast = data.credits && data.credits.cast ? data.credits.cast.slice(0, 5).map(c => c.name).join(', ') : 'N/A';
+                    const genres = data.genres ? data.genres.map(g => g.name).join(', ') : 'N/A';
+
+                    document.getElementById('modalBackdrop').src = backdrop;
+                    document.getElementById('modalTitle').textContent = title;
+                    document.getElementById('modalDesc').textContent = data.overview || 'No description available.';
+                    document.getElementById('modalMeta').innerHTML = `
+                        <span class="match" style="color: var(--green); font-weight: 700;">${match}% Match</span>
+                        <span>${year}</span>
+                        <span class="maturity-badge">${rating}</span>
+                        <span>${runtime} min</span>`;
+                    document.getElementById('modalCast').textContent = cast;
+                    document.getElementById('modalGenres').textContent = genres;
+
+                    modalPlayBtn.onclick = () => {
+                        const posterPath = data.poster_path ? TMDB_IMG + data.poster_path : '';
+                        addRecent(id, title, posterPath, year, type);
+                        window.location.href = `player.html?id=${id}&type=${type}`;
+                    };
+                } catch (error) {
+                    console.error("Modal fetch error:", error);
+                    document.getElementById('modalTitle').textContent = 'Error loading details';
+                }
+            }
+            function closeModal() { modal.classList.remove('active'); document.body.style.overflow = ''; }
+            modalClose.addEventListener('click', closeModal);
+            modal.addEventListener('click', (e) => { if(e.target === modal) closeModal(); });
+            document.addEventListener('keydown', (e) => { if(e.key === 'Escape' && modal.classList.contains('active')) closeModal(); });
+
+            // ═══════ Hero ═══════
+            function buildHero(movies){
+                heroMovies = movies.filter(m=>m.backdrop_path).slice(0,6);
+                const heroEl=document.getElementById('hero');
+                heroEl.innerHTML = '<div class="hero-dots" id="heroDots"></div>';
+                const dotsEl = document.getElementById('heroDots');
+                if(heroMovies.length===0){ heroEl.style.display='none'; return; }
+                heroEl.style.display='block';
+
+                heroMovies.forEach((m,i)=>{
+                    const slide=document.createElement('div');
+                    slide.className='hero-slide'+(i===0?' active':'');
+                    slide.style.backgroundImage=`url(${TMDB_BACK+m.backdrop_path})`;
+                    const title = esc(m.title||m.name);
+                    const year = (m.release_date||m.first_air_date||'').substring(0,4);
+                    const rating = m.vote_average?Number(m.vote_average).toFixed(1):'?';
+                    const match = m.vote_average ? Math.round(m.vote_average * 10) : 0;
+                    slide.innerHTML=`
+                        <div class="hero-overlay"></div>
+                        <div class="hero-content">
+                            <div class="hero-label">G H A Z I &nbsp; O T T &nbsp; P R E S E N T</div>
+                            <h1 class="hero-title">${title}</h1>
+                            <div class="hero-meta">
+                                <span class="match">${match}% Match</span>
+                                <span>${year}</span>
+                                <span class="maturity-badge">${rating}</span>
+                                <span class="maturity-badge">HD</span>
+                            </div>
+                            <div class="hero-buttons">
+                                <button class="hero-watch" data-id="${m.id}" data-type="movie"><i class="fas fa-play"></i> Play</button>
+                                <button class="hero-info" data-id="${m.id}" data-type="movie"><i class="fas fa-info-circle"></i> More Info</button>
+                            </div>
+                        </div>`;
+                    heroEl.appendChild(slide);
+                    const dot=document.createElement('div');
+                    dot.className='hero-dot'+(i===0?' active':'');
+                    dot.addEventListener('click',()=>goHero(i));
+                    dotsEl.appendChild(dot);
+                });
+
+                heroEl.querySelectorAll('.hero-watch').forEach(btn => btn.addEventListener('click', e => {
+                    e.stopPropagation();
+                    const id=btn.dataset.id, type=btn.dataset.type;
+                    const title = btn.closest('.hero-content').querySelector('.hero-title').textContent;
+                    const m = heroMovies.find(hm => hm.id == id);
+                    const poster = m && m.poster_path ? TMDB_IMG + m.poster_path : '';
+                    const year = m ? (m.release_date||m.first_air_date||'').substring(0,4) : '';
+                    addRecent(id, title, poster, year, type);
+                    window.location.href=`player.html?id=${id}&type=${type}`;
+                }));
+                heroEl.querySelectorAll('.hero-info').forEach(btn => btn.addEventListener('click', e => {
+                    e.stopPropagation(); openMovieModal(btn.dataset.id, btn.dataset.type);
+                }));
+
+                heroIdx=0; startHeroAuto();
+            }
+            function goHero(i){
+                const slides=document.querySelectorAll('#hero .hero-slide'), dots=document.querySelectorAll('#hero .hero-dot');
+                if(!slides.length) return;
+                slides[heroIdx]?.classList.remove('active'); dots[heroIdx]?.classList.remove('active');
+                heroIdx=i; slides[heroIdx]?.classList.add('active'); dots[heroIdx]?.classList.add('active');
+            }
+            function startHeroAuto(){
+                if(heroTimer) clearInterval(heroTimer);
+                if(heroMovies.length>1) heroTimer=setInterval(()=>{
+                    const slides=document.querySelectorAll('#hero .hero-slide');
+                    if(slides.length) goHero((heroIdx+1)%slides.length);
+                },8000);
+            }
+            function hideHero(){ if(heroTimer) clearInterval(heroTimer); document.getElementById('hero').style.display='none'; }
+
+            // ═══════ HOME: curated rows ═══════
+            function createRowSection(cfg){
+                const sec=document.createElement('div');
+                sec.className='section';
+                sec.innerHTML=`
+                    <h2 class="section-title">${cfg.title}</h2>
+                    <div class="row-scroll-area">
+                        <button class="scroll-btn left"><i class="fas fa-chevron-left"></i></button>
+                        <div class="row-track" id="grid-${cfg.key}"></div>
+                        <button class="scroll-btn right"><i class="fas fa-chevron-right"></i></button>
+                    </div>`;
+                const track = sec.querySelector('.row-track');
+                sec.querySelector('.scroll-btn.left').addEventListener('click', () => track.scrollBy({ left: -track.clientWidth * 0.85, behavior: 'smooth' }));
+                sec.querySelector('.scroll-btn.right').addEventListener('click', () => track.scrollBy({ left: track.clientWidth * 0.85, behavior: 'smooth' }));
+                return sec;
+            }
+
+            async function renderHome(){
+                teardownWall();
+                hideHeroReset();
+                const container=document.getElementById('sectionsContainer'); container.innerHTML='';
+                HOME_ROWS.forEach(c=>container.appendChild(createRowSection(c)));
+
+                const proms=HOME_ROWS.map(async c=>{
+                    try{ const d=await tmdbFetch(c.ep+'1'); return {cfg:c, data:(d.results||[]).filter(m=>m.poster_path||m.backdrop_path)}; }
+                    catch(e){ return {cfg:c, data:[]}; }
+                });
+                const results=await Promise.all(proms);
+                results.forEach(r=>{
+                    const grid=document.getElementById('grid-'+r.cfg.key); if(!grid) return;
+                    r.data.slice(0,18).forEach(m=>{ const card=createCard(m, r.cfg.type); if(card) grid.appendChild(card); });
+                });
+
+                const heroRow = results.find(r=>r.cfg.hero);
+                if(heroRow && heroRow.data.length) buildHero(heroRow.data);
+                else hideHero();
+            }
+            function hideHeroReset(){ const h=document.getElementById('hero'); h.style.display='block'; }
+
+            // ═══════ WALL: dense infinite poster grid ═══════
+            function teardownWall(){
+                if(wallState && wallState.observer) wallState.observer.disconnect();
+                wallState = null;
+            }
+
+            async function renderWall(catKey){
+                teardownWall();
+                hideHero();
+                const cfg = WALLS[catKey];
+                const container=document.getElementById('sectionsContainer');
+                container.innerHTML = `
+                    <div class="section">
+                        <h2 class="section-title">${cfg.title}</h2>
+                        <div class="grid-wall" id="wallGrid"></div>
+                        <div class="grid-loader" id="wallLoader"><i class="fas fa-circle-notch fa-spin"></i> Loading…</div>
+                        <div class="grid-sentinel" id="wallSentinel"></div>
+                    </div>`;
+
+                wallState = { page:0, ep:cfg.ep, type:cfg.type, loading:false, ended:false, observer:null };
+                await loadWallPage(); // first page
+                if(wallState){
+                    const sentinel = document.getElementById('wallSentinel');
+                    wallState.observer = new IntersectionObserver(entries=>{
+                        if(entries[0].isIntersecting) loadWallPage();
+                    },{ rootMargin:'600px' });
+                    wallState.observer.observe(sentinel);
+                }
+            }
+
+            async function loadWallPage(){
+                if(!wallState || wallState.loading || wallState.ended) return;
+                wallState.loading = true;
+                const grid=document.getElementById('wallGrid');
+                const loader=document.getElementById('wallLoader');
+                const page = wallState.page + 1;
+                try{
+                    const data = await tmdbFetch(wallState.ep + page);
+                    const results = (data.results||[]).filter(m=>m.poster_path);
+                    if(!grid){ return; } // view switched away
+                    if(results.length){
+                        results.forEach(m=>{
+                            const t = wallState.type === 'mixed' ? m.media_type : wallState.type;
+                            const card = createCard(m, t);
+                            if(card) grid.appendChild(card);
+                        });
+                        wallState.page = page;
+                        if(page >= (data.total_pages||500) || page >= 500){ wallState.ended=true; if(loader) loader.style.display='none'; }
+                    } else {
+                        wallState.ended = true; if(loader) loader.style.display='none';
+                    }
+                }catch(e){
+                    // transient error — allow retry on next intersection
+                } finally {
+                    if(wallState) wallState.loading = false;
+                }
+            }
+
+            // ═══════ MY LIST ═══════
+            function renderMyList(){
+                teardownWall();
+                hideHero();
+                const container = document.getElementById('sectionsContainer');
+                container.innerHTML = '';
+                if (watchlist.length === 0) {
+                    container.innerHTML = `<div class="empty-state">
+                        <i class="fas fa-heart"></i>
+                        <h2>Your list is empty</h2>
+                        <p>Add movies and shows to your list to watch them later.</p>
+                    </div>`;
+                    return;
+                }
+                const sec = document.createElement('div');
+                sec.className = 'section';
+                sec.innerHTML = `<h2 class="section-title">My List</h2><div class="grid-wall" id="grid-mylist"></div>`;
+                container.appendChild(sec);
+                const grid = document.getElementById('grid-mylist');
+                watchlist.forEach(item => {
+                    const card=createCard({
+                        id:item.id, title:item.title, poster_path:null, backdrop_path:null,
+                        release_date:(item.year||'')+'-01-01', vote_average:0
+                    }, item.type);
+                    if(!card) return;
+                    const img=card.querySelector('img'); if(item.poster) img.src=item.poster;
+                    card.querySelector('.card-rating').innerHTML='<i class="fas fa-heart" style="color:var(--red)"></i>';
+                    grid.appendChild(card);
+                });
+            }
+
+            // ═══════ Nav category switching ═══════
+            document.querySelectorAll('.nav-links a').forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const cat = link.dataset.cat;
+                    document.querySelectorAll('.nav-links a').forEach(a => a.classList.remove('active'));
+                    link.classList.add('active');
+                    if (cat === 'home') renderHome();
+                    else if (cat === 'mylist') renderMyList();
+                    else renderWall(cat);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                });
+            });
+
+            // ═══════ SEARCH ═══════
+            const searchInput=document.getElementById('searchInput');
+            const searchDropdown=document.getElementById('searchDropdown');
+            const searchClear=document.getElementById('searchClear');
+            const searchIconBtn=document.getElementById('searchIconBtn');
+            let searchTimeout;
+            searchIconBtn.addEventListener('click', () => {
+                searchInput.classList.toggle('active');
+                if(searchInput.classList.contains('active')) setTimeout(() => searchInput.focus(), 100);
+                else { searchInput.value=''; searchDropdown.classList.remove('active'); }
+            });
+            searchInput.addEventListener('input', function(){
+                clearTimeout(searchTimeout);
+                const q=this.value.trim();
+                if(q.length<2){ searchDropdown.classList.remove('active'); return; }
+                searchDropdown.classList.add('active');
+                searchDropdown.innerHTML='<div style="padding:14px;text-align:center;color:var(--text-muted);">Searching...</div>';
+                searchTimeout = setTimeout(async ()=>{
+                    if(searchInput.value.trim()!==q) return;
+                    try{
+                        const data=await tmdbFetch('/search/multi?query='+encodeURIComponent(q));
+                        const items=(data.results||[]).filter(r=>['movie','tv'].includes(r.media_type)).slice(0,8);
+                        if(items.length){
+                            searchDropdown.innerHTML=items.map(item=>{
+                                const poster=item.poster_path?TMDB_IMG+item.poster_path:'';
+                                const title=item.title||item.name||'Untitled';
+                                const year=(item.release_date||item.first_air_date||'').substring(0,4);
+                                const rating=item.vote_average?Number(item.vote_average).toFixed(1):'?';
+                                const typeLabel=item.media_type==='movie'?'Movie':'TV';
+                                return `<div class="search-item" data-id="${item.id}" data-type="${item.media_type}">
+                                    ${poster?`<img src="${poster}" alt="">`:'<div style="width:40px;height:60px;background:#222;border-radius:3px;"></div>'}
+                                    <div class="search-item-info"><b>${esc(title)}</b><span>★ ${rating} · ${year} · ${typeLabel}</span></div></div>`;
+                            }).join('');
+                            document.querySelectorAll('.search-item').forEach(el=>el.addEventListener('click',()=> {
+                                searchDropdown.classList.remove('active'); searchInput.value=''; searchInput.classList.remove('active');
+                                openMovieModal(el.dataset.id, el.dataset.type);
+                            }));
+                        } else { searchDropdown.innerHTML='<div class="search-no-results">No results found</div>'; }
+                    }catch(e){ searchDropdown.innerHTML='<div class="search-no-results">Search error</div>'; }
+                },350);
+            });
+            searchClear.addEventListener('click',()=>{ searchInput.value=''; searchDropdown.classList.remove('active'); searchInput.focus(); });
+            document.addEventListener('click',e=>{ if(!e.target.closest('.search-container')) searchDropdown.classList.remove('active'); });
+
+            // ═══════ Back to Top & Nav Scroll ═══════
+            const backBtn=document.getElementById('backToTop');
+            window.addEventListener('scroll',()=>{
+                backBtn.classList.toggle('visible',window.scrollY>600);
+                document.getElementById('mainNav').classList.toggle('scrolled',window.scrollY>30);
+            });
+            backBtn.addEventListener('click',()=>window.scrollTo({top:0,behavior:'smooth'}));
+
+            // ═══════ Watchlist Modal (Bell) ═══════
+            document.getElementById('watchlistBtnNav').addEventListener('click',()=>{
+                if(watchlist.length===0){ toast('Your watchlist is empty'); return; }
+                const modalEl=document.createElement('div');
+                modalEl.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:90%;max-width:420px;max-height:70vh;overflow-y:auto;background:rgba(12,12,16,0.98);backdrop-filter:blur(20px);border-radius:10px;padding:24px;z-index:1500;border:1px solid rgba(255,255,255,0.08);box-shadow:0 20px 50px rgba(0,0,0,0.8);';
+                modalEl.innerHTML=`
+                    <div style="display:flex;justify-content:space-between;margin-bottom:18px;">
+                        <h3 style="font-weight:800;font-size:1.4rem;">My List</h3>
+                        <button id="closeWl" style="background:none;border:none;color:#fff;font-size:1.6rem;cursor:pointer;">&times;</button>
+                    </div>
+                    ${watchlist.map(w=>`
+                        <div style="display:flex;gap:12px;margin-bottom:12px;background:#16161c;padding:10px;border-radius:6px;align-items:center;">
+                            ${w.poster?`<img src="${w.poster}" style="width:40px;height:60px;border-radius:3px;object-fit:cover;">`:'<div style="width:40px;height:60px;background:#222;border-radius:3px;"></div>'}
+                            <div style="flex:1;"><b style="font-size:0.95rem;">${esc(w.title)}</b><br><span style="color:var(--text-muted);font-size:0.8rem;">${w.year||''} · ${w.type||''}</span></div>
+                            <button data-rm="${w.id}" style="background:var(--red);border:none;color:#fff;border-radius:6px;padding:6px 12px;font-size:0.75rem;cursor:pointer;font-weight:700;">Remove</button>
+                        </div>`).join('')}`;
+                document.body.appendChild(modalEl);
+                document.getElementById('closeWl').onclick=()=>modalEl.remove();
+                modalEl.querySelectorAll('[data-rm]').forEach(b=>b.addEventListener('click',()=>{
+                    watchlist=watchlist.filter(w=>w.id!=b.dataset.rm); saveWl(); refreshHearts(); modalEl.remove(); toast('Removed from My List');
+                    const activeLink = document.querySelector('.nav-links a.active');
+                    if (activeLink && activeLink.dataset.cat === 'mylist') renderMyList();
+                }));
+                modalEl.addEventListener('click',e=>{ if(e.target===modalEl) modalEl.remove(); });
+            });
+
+            // ═══════ INIT ═══════
+            async function init(){
+                loadStorage();
+                if(watchlist.length > 0) document.getElementById('watchlistBtnNav').querySelector('i').className = 'fas fa-heart';
+                renderRecent();
+                await renderHome();
+                setTimeout(() => {
+                    document.getElementById('loadingScreen').classList.add('hidden');
+                    setTimeout(()=>{ const ls=document.getElementById('loadingScreen'); if(ls) ls.remove(); }, 600);
+                }, 2600);
+                refreshHearts();
+            }
+            init();
+        })();
+    </script>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"2e0217940cbc41408838d9b4a271d09a","r":1}' crossorigin="anonymous"></script>
+</body>
+</html>
+
